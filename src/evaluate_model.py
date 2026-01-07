@@ -1,6 +1,6 @@
 import joblib
 from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score
-from data_preprocessing import preprocess_data
+from src.data_preprocessing import preprocess_data
 
 def evaluate():
     _, X_test, _, y_test = preprocess_data("../data/creditcard.csv")
