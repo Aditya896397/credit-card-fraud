@@ -18,10 +18,6 @@ st.set_page_config(page_title="Credit Card Fraud Detection", layout="centered")
 # -------------------------------------------------
 # Train model if not present (Cloud-safe)
 # -------------------------------------------------
-if not os.path.exists(MODEL_PATH):
-    st.warning("⚠️ Trained model not found. Training model...")
-    from src.train_model import train
-    train()
 
 # -------------------------------------------------
 # Load trained model
