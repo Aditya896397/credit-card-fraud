@@ -4,77 +4,55 @@ import joblib
 import os
 import sys
 
-# -------------------------------------------------
-# Resolve project root & fix imports
-# -------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
 MODEL_PATH = os.path.join(BASE_DIR, "models", "fraud_model.pkl")
-DATA_PATH = os.path.join(BASE_DIR, "data", "creditcard.csv")
 
 st.set_page_config(page_title="Credit Card Fraud Detection", layout="centered")
 
-# -------------------------------------------------
-# Train model if not present (Cloud-safe)
-# -------------------------------------------------
-
-# -------------------------------------------------
-# Load trained model
-# -------------------------------------------------
-model = joblib.load(MODEL_PATH)
-
-# -------------------------------------------------
-# UI
-# -------------------------------------------------
 st.title("💳 Credit Card Fraud Detection System")
-st.write(
-    "Predict fraudulent credit card transactions using a machine learning model. "
-    "Upload a CSV file or use sample data."
-)
+st.write("Upload a CSV file to train the model and detect fraud.")
 
-# -------------------------------------------------
-# Option 1: Use sample data
-# -------------------------------------------------
-if st.button("Use Sample Transactions"):
-    df = pd.read_csv(DATA_PATH)
+model = None
+if os.path.exists(MODEL_PATH):
+    model = joblib.load(MODEL_PATH)
+    st.success("Pre-trained model loaded")
 
-    # Drop label if present
-    if "Class" in df.columns:
-        df = df.drop(columns=["Class"])
-
-    st.subheader("📄 Sample Data Preview")
-    st.dataframe(df.head())
-
-    preds = model.predict(df)
-    df["Fraud Prediction"] = preds
-
-    fraud_count = int(df["Fraud Prediction"].sum())
-
-    st.markdown("---")
-    st.success(f"🚨 Fraudulent Transactions Detected: **{fraud_count} / {len(df)}**")
-    st.dataframe(df)
-
-# -------------------------------------------------
-# Option 2: Upload CSV
-# -------------------------------------------------
-uploaded_file = st.file_uploader("Upload transaction CSV", type=["csv"])
+uploaded_file = st.file_uploader("Upload credit card transactions CSV", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
-    # Drop label automatically
-    if "Class" in df.columns:
-        df = df.drop(columns=["Class"])
+    if "Class" not in df.columns:
+        st.error("CSV must contain a 'Class' column for training.")
+        st.stop()
 
-    st.subheader("📄 Uploaded Data Preview")
+    st.subheader("📄 Data Preview")
     st.dataframe(df.head())
 
-    preds = model.predict(df)
-    df["Fraud Prediction"] = preds
+    X = df.drop(columns=["Class"])
+    y = df["Class"]
 
-    fraud_count = int(df["Fraud Prediction"].sum())
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.linear_model import LogisticRegression
+
+    scaler = StandardScaler()
+    X["Amount"] = scaler.fit_transform(X[["Amount"]])
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    model = LogisticRegression(max_iter=1000)
+    model.fit(X_train, y_train)
+
+    joblib.dump(model, MODEL_PATH)
+    st.success("Model trained successfully")
+
+    preds = model.predict(X_test)
+    fraud_count = int(preds.sum())
 
     st.markdown("---")
-    st.success(f"🚨 Fraudulent Transactions Detected: **{fraud_count} / {len(df)}**")
-    st.dataframe(df)
+    st.success(f"🚨 Fraudulent Transactions Detected in Test Set: {fraud_count}")
